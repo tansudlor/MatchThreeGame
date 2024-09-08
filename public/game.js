@@ -38,7 +38,7 @@ class Game extends Phaser.Scene {
     };
     this.gameArea.landscape = (gameObject, scaleFactor, cubeSize) => {
       let landscapeOffset = cubeSize * this.column * scaleFactor;
-      //gameObject.setScale(scaleFactor, scaleFactor);
+      gameObject.setScale(scaleFactor);
       //gameObject.x = this.scale.width / 2;
       //gameObject.y = this.scale.height * 0.2;
     };
@@ -46,10 +46,9 @@ class Game extends Phaser.Scene {
 
     //Create Displayboard
     this.match3Area = this.add.container(0, 0);
-
     this.backgroundMatch3Area = this.add.graphics();
-    this.backgroundMatch3Area.fillStyle(0xff0000, 1); // สีแดง (0xff0000), ความโปร่งใส 1 (ทึบเต็มที่)
-    this.backgroundMatch3Area.fillRect(400, 125, 800, 800); // สร้างสี่เหลี่ยมขนาด 300x300 ที่ตำแหน่ง (0,0)
+    this.backgroundMatch3Area.fillStyle(0xff0000, 0); // สีแดง (0xff0000), ความโปร่งใส 1 (ทึบเต็มที่)
+    this.backgroundMatch3Area.fillRect(0, 0, 1200, 925); // สร้างสี่เหลี่ยมขนาด 300x300 ที่ตำแหน่ง (0,0) //12
     this.match3Area.add(this.backgroundMatch3Area);
     for (let j = 0; j < this.row; j++) {
       for (let i = 0; i < this.column; i++) {
@@ -61,51 +60,49 @@ class Game extends Phaser.Scene {
         this.gameObjectMap["cube" + (j * this.row + i)] = this.cube;
       }
     }
-    this.match3Area.portrait = (gameObject, scaleFactor, cubeSize) => {
-      gameObject.x = 20;
-      gameObject.y = 20;
-    };
-    this.match3Area.landscape = (gameObject, scaleFactor, cubeSize) => {
-      console.log(scaleFactor);
-      gameObject.setScale(scaleFactor);
-    };
 
     this.gameArea.add(this.match3Area);
     this.gameObjectMap.match3Area = this.match3Area;
 
     //Create Logo
+
     this.logo = this.add.image(0, 0, "logo");
-    this.gameArea.add(this.logo);
+    this.logo.displayHeight = 300;
+    this.logo.displayWidth = (this.logo.displayHeight / this.logo.displayOriginY) * this.logo.displayOriginX;
     this.logo.setOrigin(0, 0);
     this.gameObjectMap.logo = this.logo;
     this.logo.portrait = (gameObject, scaleFactor, cubeSize, contentWidth) => {
-      gameObject.setScale(scaleFactor, scaleFactor);
-      gameObject.x = this.scale.width / 2 - (cubeSize * this.column) / 2 + cubeSize / 2;
-      gameObject.y = this.scale.height / 2 - (cubeSize * this.row) / 2 + cubeSize / 2;
+      gameObject.x = 0;
+      gameObject.y = 0;
     };
     this.logo.landscape = (gameObject, scaleFactor, cubeSize, contentWidth) => {
       gameObject.x = 0;
       gameObject.y = 0;
     };
+    this.gameArea.add(this.logo);
+
     //Create CTA Button
-    this.cta = this.add.image(0, this.cubeSize * this.column, "cta");
-    this.gameArea.add(this.cta);
-    this.cta.setOrigin(0, 0);
-    this.cta.setScale(0.4);
-    this.gameObjectMap.cta = this.cta;
-    this.cta.portrait = (gameObject, scaleFactor, cubeSize, contentWidth) => {
-      gameObject.setScale(scaleFactor, scaleFactor);
-      gameObject.x = this.scale.width / 2 - (cubeSize * this.column) / 2 + cubeSize / 2;
-      gameObject.y = this.scale.height / 2 - (cubeSize * this.row) / 2 + cubeSize / 2;
+    this.ctaPlay = this.createCTAButton("Play Now!", "cta", () => {
+      console.log("CTA Click");
+    });
+    this.ctaPlay.image.displayHeight = 125;
+    this.ctaPlay.image.displayWidth = (this.ctaPlay.image.displayHeight / this.ctaPlay.image.displayOriginY) * this.ctaPlay.image.displayOriginX;
+    this.ctaPlay.setSize(this.ctaPlay.image.displayWidth, this.ctaPlay.image.displayHeight);
+    this.gameObjectMap.ctaPlay = this.ctaPlay;
+    this.ctaPlay.portrait = (gameObject, scaleFactor, cubeSize, contentWidth) => {
+      gameObject.x = 180;
+      gameObject.y = 860;
     };
-    this.cta.landscape = (gameObject, scaleFactor, cubeSize, contentWidth) => {
-      this.cta.setScale(0.4 * scaleFactor);
-      gameObject.x = 0;
-      gameObject.y = cubeSize * this.column;
+    this.ctaPlay.landscape = (gameObject, scaleFactor, cubeSize, contentWidth) => {
+      gameObject.x = 180;
+      gameObject.y = 860;
     };
 
+    this.gameArea.add(this.ctaPlay);
+
     //Create Goal Counter Text
-    this.goalCounter = this.add.text(0, 0, "LeveL", {
+
+    /*this.goalCounter = this.add.text(0, 0, "LeveL", {
       font: "32px FredokaOne",
       fill: "#ffffff",
       align: "center",
@@ -121,7 +118,7 @@ class Game extends Phaser.Scene {
       gameObject.x = this.logo.displayWidth + (this.column / 2) * cubeSize;
       gameObject.setFontSize(32 * scaleFactor * 1.35);
       gameObject.y = 60 * scaleFactor;
-    };
+    };*/
 
     this.scale.on("resize", this.resize, this);
     this.resize({ width: innerWidth, height: innerHeight });
@@ -141,16 +138,33 @@ class Game extends Phaser.Scene {
     for (const key in this.gameObjectMap) {
       const element = this.gameObjectMap[key];
       if (gameSize.width < gameSize.height) {
-        let scaleFactor = gameSize.height / this.refHeightSize;
+        /*let scaleFactor = gameSize.height / this.refHeightSize;
         let cubeSize = this.cubeSize * scaleFactor;
-        this.logo.setScale(0.3 * scaleFactor);
         let contentWidth = this.logo.displayWidth + this.column * cubeSize;
+        this.gameArea.x = (gameSize.width - this.gameArea.width * scaleFactor) / 2;
+        this.gameArea.y = (gameSize.height - this.gameArea.height * scaleFactor) / 2;*/
+        this.gameArea.width = 800;
+        this.gameArea.height = 1300;
+        let scaleFactor = gameSize.width / this.gameArea.width;
+        if (scaleFactor * this.gameArea.height > gameSize.height) {
+          scaleFactor = gameSize.height / this.gameArea.height;
+        }
+        let cubeSize = this.cubeSize * scaleFactor;
+        let contentWidth = this.column * this.cubeSize + this.cubeSize / 2 - this.logo.x - this.logo.displayWidth / 2;
+        this.gameArea.x = (gameSize.width - this.gameArea.width * scaleFactor) / 2;
+        this.gameArea.y = (gameSize.height - this.gameArea.height * scaleFactor) / 2;
         element.portrait ? element.portrait(element, scaleFactor, cubeSize, contentWidth) : null;
       } else {
-        let scaleFactor = gameSize.width / this.refWidthSize;
+        this.gameArea.width = 1200;
+        this.gameArea.height = 925;
+        let scaleFactor = gameSize.width / this.gameArea.width;
+        if (scaleFactor * this.gameArea.height > gameSize.height) {
+          scaleFactor = gameSize.height / this.gameArea.height;
+        }
         let cubeSize = this.cubeSize * scaleFactor;
-        this.logo.setScale(0.3 * scaleFactor);
         let contentWidth = this.column * this.cubeSize + this.cubeSize / 2 - this.logo.x - this.logo.displayWidth / 2;
+        this.gameArea.x = (gameSize.width - this.gameArea.width * scaleFactor) / 2;
+        this.gameArea.y = (gameSize.height - this.gameArea.height * scaleFactor) / 2;
         element.landscape ? element.landscape(element, scaleFactor, cubeSize, contentWidth) : null;
       }
     }
@@ -163,6 +177,30 @@ class Game extends Phaser.Scene {
         element.update(element);
       }
     }
+  }
+
+  createCTAButton(caption, img, callback) {
+    let container = this.add.container(0, 0);
+
+    // เพิ่ม image เข้าไปใน container
+    let image = this.add.image(0, 0, img);
+    container.add(image);
+    container.image = image;
+    // เพิ่มข้อความ (child) เข้าไปใน container
+    let text = this.add.text(0, 0, caption, {
+      font: "32px FredokaOne",
+      fill: "#ffffff",
+      align: "center",
+    });
+    text.setOrigin(0.5); // ตั้งให้ข้อความอยู่กึ่งกลางของ image
+    container.add(text);
+    container.text = text;
+    // ตั้งค่า interactive ให้ container (รวมถึง image และ text)
+    container.setSize(image.width, image.height); // กำหนดขนาดให้ container ตามขนาดของ image
+    container.setInteractive();
+
+    container.on("pointerdown", callback);
+    return container;
   }
 }
 
