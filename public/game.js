@@ -45,16 +45,33 @@ class Game extends Phaser.Scene {
     this.gameObjectMap.gameArea = this.gameArea;
 
     //Create Displayboard
+    this.match3Area = this.add.container(0, 0);
+
+    this.backgroundMatch3Area = this.add.graphics();
+    this.backgroundMatch3Area.fillStyle(0xff0000, 1); // สีแดง (0xff0000), ความโปร่งใส 1 (ทึบเต็มที่)
+    this.backgroundMatch3Area.fillRect(400, 125, 800, 800); // สร้างสี่เหลี่ยมขนาด 300x300 ที่ตำแหน่ง (0,0)
+    this.match3Area.add(this.backgroundMatch3Area);
     for (let j = 0; j < this.row; j++) {
       for (let i = 0; i < this.column; i++) {
         this.cube = this.add.image(i * this.cubeSize + 400, j * this.cubeSize + 125, "cube0");
         this.cube.displayHeight = this.cubeSize;
         this.cube.displayWidth = this.cubeSize;
         this.cube.setOrigin(0, 0);
-        this.gameArea.add(this.cube);
+        this.match3Area.add(this.cube);
         this.gameObjectMap["cube" + (j * this.row + i)] = this.cube;
       }
     }
+    this.match3Area.portrait = (gameObject, scaleFactor, cubeSize) => {
+      gameObject.x = 20;
+      gameObject.y = 20;
+    };
+    this.match3Area.landscape = (gameObject, scaleFactor, cubeSize) => {
+      console.log(scaleFactor);
+      gameObject.setScale(scaleFactor);
+    };
+
+    this.gameArea.add(this.match3Area);
+    this.gameObjectMap.match3Area = this.match3Area;
 
     //Create Logo
     this.logo = this.add.image(0, 0, "logo");
@@ -88,7 +105,7 @@ class Game extends Phaser.Scene {
     };
 
     //Create Goal Counter Text
-    this.goalCounter = this.add.text(100, 100, "Hello Phaser!", {
+    this.goalCounter = this.add.text(0, 0, "LeveL", {
       font: "32px FredokaOne",
       fill: "#ffffff",
       align: "center",
@@ -101,8 +118,9 @@ class Game extends Phaser.Scene {
       gameObject.y = this.scale.height / 2 - (cubeSize * this.row) / 2 + cubeSize / 2;
     };
     this.goalCounter.landscape = (gameObject, scaleFactor, cubeSize, contentWidth) => {
-      gameObject.x = 500 * scaleFactor;
-      gameObject.y = 0;
+      gameObject.x = this.logo.displayWidth + (this.column / 2) * cubeSize;
+      gameObject.setFontSize(32 * scaleFactor * 1.35);
+      gameObject.y = 60 * scaleFactor;
     };
 
     this.scale.on("resize", this.resize, this);
@@ -122,7 +140,6 @@ class Game extends Phaser.Scene {
 
     for (const key in this.gameObjectMap) {
       const element = this.gameObjectMap[key];
-
       if (gameSize.width < gameSize.height) {
         let scaleFactor = gameSize.height / this.refHeightSize;
         let cubeSize = this.cubeSize * scaleFactor;
@@ -130,8 +147,6 @@ class Game extends Phaser.Scene {
         let contentWidth = this.logo.displayWidth + this.column * cubeSize;
         element.portrait ? element.portrait(element, scaleFactor, cubeSize, contentWidth) : null;
       } else {
-        //this.gameArea
-        //if(gameSize.height < )
         let scaleFactor = gameSize.width / this.refWidthSize;
         let cubeSize = this.cubeSize * scaleFactor;
         this.logo.setScale(0.3 * scaleFactor);
