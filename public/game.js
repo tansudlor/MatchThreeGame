@@ -1,3 +1,269 @@
+class GameLogic {
+  colorTable = [];
+  statusTable = [];
+  constructor() {
+    for (let i = 0; i < 64; i++) {
+      this.colorTable[i] = (i % 6) + 1;
+      this.statusTable[i] = "ready";
+      if (i % 7 == 0) {
+        this.colorTable[i] = 1;
+      }
+    }
+    this.colorTable[4] = 3;
+    this.colorTable[Math.trunc(Math.random() * 64) % 64] = 7;
+    this.colorTable[Math.trunc(Math.random() * 64) % 64] = 8;
+    this.colorTable[Math.trunc(Math.random() * 64) % 64] = 9;
+  }
+
+  getCell(x, y) {
+    return { color: this.colorTable[y * 8 + x], status: this.statusTable[y * 8 + x] };
+  }
+
+  getCellByIndex(target) {
+    return { color: this.colorTable[target], status: this.statusTable[target] };
+  }
+
+  setCell(x, y, color, status) {
+    this.colorTable[y * 8 + x] = color;
+    this.statusTable[y * 8 + x] = status;
+  }
+  setCellByIndex(target, color, status) {
+    this.colorTable[target] = color;
+    this.statusTable[target] = status;
+  }
+
+  swapCell(source, target) {
+    console.log(source, target);
+    this.printTable(this.colorTable);
+    let result = null;
+    let x = Math.trunc(source % 8);
+    let y = Math.trunc(source / 8);
+    if (x == 7 && target % 8 == 0) {
+      return result;
+    }
+    if (x == 0 && target % 8 == 7) {
+      return result;
+    }
+
+    if (!(target == y * 8 + x + 1 || target == y * 8 + x - 1 || target == (y + 1) * 8 + x || target == (y - 1) * 8 + x)) {
+      return result;
+    }
+    result = this.checkAllowSwap(source, target);
+    if (result != null) {
+      let first = this.getCellByIndex(source);
+      let second = this.getCellByIndex(target);
+      this.setCellByIndex(source, second.color, second.status);
+      this.setCellByIndex(target, first.color, first.status);
+    }
+
+    return result;
+  }
+
+  checkChain() {
+    let testTable = Array.from(this.colorTable);
+    let markTable = new Array(64).fill(0);
+    let pairCount = 0;
+    //Primary Mark
+    for (let i = 0; i < 64; i++) {
+      if (this.markCheck(i, testTable, markTable)) {
+        pairCount++;
+      }
+    }
+    //Secondary Mark (for Primary Mark not found pattern)
+    for (let i = 0; i < 64; i++) {
+      this.markCheck(i, testTable, markTable);
+    }
+    if (pairCount > 0) {
+      return markTable;
+    }
+    return null;
+  }
+
+  checkAllowSwap(source, target) {
+    if (target < 0) {
+      console.log("1");
+      return null;
+    }
+    let testTable = Array.from(this.colorTable);
+    let markTable = new Array(64).fill(0);
+    let temp = testTable[target];
+    testTable[target] = testTable[source];
+    testTable[source] = temp;
+    let pairCount = 0;
+    //Primary Mark
+    for (let i = 0; i < 64; i++) {
+      if (this.markCheck(i, testTable, markTable)) {
+        pairCount++;
+      }
+    }
+    //Secondary Mark (for Primary Mark not found pattern)
+    for (let i = 0; i < 64; i++) {
+      if (this.markCheck(i, testTable, markTable)) {
+        pairCount++;
+      }
+    }
+    if (pairCount > 0) {
+      console.log("2");
+      return markTable;
+    }
+    console.log("3");
+    return null;
+  }
+
+  markCheck(cell, testTable, markTable) {
+    let result = false;
+    let x = Math.trunc(cell % 8);
+    let y = Math.trunc(cell / 8);
+    let markV = { up: -1, down: -1 };
+    let markH = { left: -1, right: -1 };
+    let up = (y - 1) * 8 + x;
+    let down = (y + 1) * 8 + x;
+    let left = y * 8 + x - 1;
+    let right = y * 8 + x + 1;
+    let color = testTable[cell];
+    if (y > 0) {
+      if (color == testTable[up] && color != 0) {
+        if (markTable[up] == 3) {
+          markTable[cell] = 3;
+        }
+        markV.up = up;
+      }
+    }
+    if (y < 7) {
+      if (color == testTable[down] && color != 0) {
+        if (markTable[down] == 3) {
+          markTable[cell] = 3;
+        }
+        markV.down = down;
+      }
+    }
+    if (x > 0) {
+      if (color == testTable[left] && color != 0) {
+        if (markTable[left] == 3) {
+          markTable[cell] = 3;
+        }
+        markH.left = left;
+      }
+    }
+    if (x < 7) {
+      if (color == testTable[right] && color != 0) {
+        if (markTable[right] == 3) {
+          markTable[cell] = 3;
+        }
+        markH.right = right;
+      }
+    }
+    let pairCount = 0;
+    for (const direction in markV) {
+      if (markV[direction] != -1) {
+        pairCount++;
+      }
+    }
+
+    if (pairCount >= 2) {
+      markTable[markV.up] = 3;
+      markTable[markV.down] = 3;
+      markTable[cell] = 3;
+      result = true;
+    }
+
+    pairCount = 0;
+    for (const direction in markH) {
+      if (markH[direction] != -1) {
+        pairCount++;
+      }
+    }
+
+    if (pairCount >= 2) {
+      markTable[markH.left] = 3;
+      markTable[markH.right] = 3;
+      markTable[cell] = 3;
+      result = true;
+    }
+    console.log("4", pairCount);
+    return result;
+  }
+
+  execute(markTable, effect) {
+    for (const cell in markTable) {
+      if (markTable[cell] == 3) {
+        this.colorTable[cell] = 0;
+      }
+    }
+    effect();
+  }
+
+  bomb(x, y, index) {
+    console.log("bomb");
+    for (let j = 0; j < 3; j++) {
+      for (let i = 0; i < 3; i++) {
+        if (x == 0 && i == 0) {
+          continue;
+        }
+        if (x == 7 && i == 2) {
+          continue;
+        }
+        if (y == 0 && j == 0) {
+          continue;
+        }
+        if (y == 7 && j == 2) {
+          continue;
+        }
+        this.colorTable[(y - 1 + j) * 8 + (x - 1 + i)] = 0;
+      }
+    }
+  }
+
+  rocketHorizontal(x, y, index) {
+    for (let i = 0; i < 8; i++) {
+      this.colorTable[y * 8 + i] = 0;
+    }
+  }
+
+  rocketVertical(x, y, index) {
+    for (let i = 0; i < 8; i++) {
+      this.colorTable[i * 8 + x] = 0;
+    }
+  }
+
+  moveDown(colorTable) {
+    let result = false;
+    for (let i = 63; i >= 0; i--) {
+      if (colorTable[i] == 0) {
+        continue;
+      }
+      let x = Math.trunc(i % 8);
+      let y = Math.trunc(i / 8);
+      if (y < 7) {
+        if (colorTable[(y + 1) * 8 + x] == 0) {
+          colorTable[(y + 1) * 8 + x] = colorTable[i];
+          colorTable[i] = 0;
+          result = true;
+        }
+      }
+    }
+    return result;
+  }
+
+  refill() {
+    for (let i = 63; i >= 0; i--) {
+      if (this.colorTable[i] == 0) {
+        this.colorTable[i] = (Math.trunc(Math.random() * 1000) % 6) + 1;
+      }
+    }
+  }
+  printTable(colorTable) {
+    let table = "";
+    for (let jj = 0; jj < 8; jj++) {
+      for (let ii = 0; ii < 8; ii++) {
+        table += colorTable[jj * 8 + ii] + "\t";
+      }
+      table += "\n";
+    }
+    console.log(table);
+  }
+}
+
 class Game extends Phaser.Scene {
   row = 8;
   column = 8;
@@ -5,7 +271,13 @@ class Game extends Phaser.Scene {
   gameObjectMap = {};
   refHeightSize = 960;
   refWidthSize = 1920;
+  first = null;
+  second = null;
   gameSize = {};
+  moveDown = false;
+  state = "ready";
+  markTable = null;
+  ignoreState = 0;
   constructor() {
     super("Game");
   }
@@ -23,9 +295,62 @@ class Game extends Phaser.Scene {
     this.load.image("logo", "Assets/image/ui/logo.webp");
     this.load.image("cta", "Assets/image/ui/ctaButton.webp");
     this.load.image("endcard", "Assets/image/backgrounds/endcard_bg.webp");
+    this.load.image("cube7", "Assets/image/boosters/bomb.webp");
+    this.load.image("cube8", "Assets/image/boosters/RocketHorizontal.webp");
+    this.load.image("cube9", "Assets/image/boosters/RocketVertical.webp");
+  }
+
+  logicLoop() {
+    if (this.ignoreState-- > 0) {
+      return;
+    }
+    if (this.state == "swap") {
+      this.logic.execute(this.markTable, () => {
+        this.ignoreState = 3;
+        this.state = "movedown";
+      });
+    }
+    if (this.state == "movedown") {
+      let moveDown = this.logic.moveDown(this.logic.colorTable);
+      if (!moveDown) {
+        this.ignoreState = 10;
+        this.state = "checkchain";
+      }
+    }
+    if (this.state == "checkchain") {
+      let chain = this.logic.checkChain();
+      if (!chain) {
+        this.ignoreState = 10;
+        this.state = "refill";
+      } else {
+        this.logic.execute(chain, () => {
+          this.ignoreState = 3;
+          this.state = "movedown";
+        });
+      }
+    }
+    if (this.state == "refill") {
+      this.logic.refill();
+      this.ignoreState = 10;
+      this.state = "checkchain_after_refill";
+    }
+    if (this.state == "checkchain_after_refill") {
+      let chain = this.logic.checkChain();
+      if (!chain) {
+        this.markTable = null;
+        this.state = "ready";
+      } else {
+        this.logic.execute(chain, () => {
+          this.ignoreState = 3;
+          this.state = "movedown";
+        });
+      }
+    }
   }
 
   create() {
+    this.logic = new GameLogic();
+    setInterval(this.logicLoop.bind(this), 50);
     // Add the background image to the game
     this.background = this.add.image(this.scale.width / 2, this.scale.height / 2, "background");
 
@@ -47,12 +372,89 @@ class Game extends Phaser.Scene {
 
     //Create Displayboard
     this.match3Area = this.add.container(0, 0);
-    for (let j = 0; j < this.row; j++) {
+    for (let j = this.row - 1; j >= 0; j--) {
       for (let i = 0; i < this.column; i++) {
-        this.cube = this.add.image(i * this.cubeSize, j * this.cubeSize, "cube0");
+        this.cube = this.add.image(i * this.cubeSize + this.cubeSize / 2, j * this.cubeSize + this.cubeSize / 2, "cube0");
         this.cube.displayHeight = this.cubeSize;
         this.cube.displayWidth = this.cubeSize;
-        this.cube.setOrigin(0, 0);
+        this.cube.index = j * 8 + i;
+        this.cube.setOrigin(0.5);
+        this.cube.game = this;
+        this.cube.update = (cube) => {
+          let cubeData = this.logic.getCellByIndex(cube.index);
+          cube.displayHeight = cube.game.cubeSize;
+          cube.displayWidth = cube.game.cubeSize; //(cube.displayHeight / thcube.displayOriginY) * cube.displayOriginX;
+          if (cubeData.color > 6) {
+            cube.setScale(0.175);
+          }
+          cube.setTexture("cube" + cubeData.color);
+          cube.setVisible(true);
+          if (cubeData.color == 0) {
+            cube.setVisible(false);
+          }
+        };
+        this.cube.setInteractive();
+        this.cube.on(
+          "pointerdown",
+          function () {
+            if (this.game.state != "ready") {
+              return;
+            }
+
+            let x = Math.trunc(this.index % 8);
+            let y = Math.trunc(this.index / 8);
+            if (this.game.logic.getCellByIndex(this.index).color == 7) {
+              //bomb
+              this.game.logic.bomb(x, y, this.index);
+              this.game.state = "movedown";
+              return;
+            }
+            if (this.game.logic.getCellByIndex(this.index).color == 8) {
+              //RocketHorizontal
+              this.game.logic.rocketHorizontal(x, y, this.index);
+              this.game.state = "movedown";
+              return;
+            }
+            if (this.game.logic.getCellByIndex(this.index).color == 9) {
+              //RocketVertical
+              this.game.logic.rocketVertical(x, y, this.index);
+              this.game.state = "movedown";
+              return;
+            }
+
+            this.game.first = this;
+          },
+          this.cube
+        );
+        this.cube.on(
+          "pointerup",
+          function () {
+            if (this.game.first == null) {
+              return;
+            }
+            if (this.game.first == this) {
+              return;
+            }
+            if (this.game.state != "ready") {
+              return;
+            }
+
+            this.game.second = this;
+            this.game.markTable = this.game.logic.swapCell(this.game.first.index, this.game.second.index);
+            if (this.game.markTable != null) {
+              this.game.ignoreState = 5;
+              this.game.state = "swap";
+            }
+          },
+          this.cube
+        );
+        this.cube.on(
+          "click",
+          function () {
+            console.log(this.index);
+          },
+          this.cube
+        );
         this.match3Area.add(this.cube);
         this.gameObjectMap["cube" + (j * this.row + i)] = this.cube;
       }
@@ -236,10 +638,10 @@ class Game extends Phaser.Scene {
     container.add(text);
     container.text = text;
     // ตั้งค่า interactive ให้ container (รวมถึง image และ text)
-    container.setSize(image.width, image.height); // กำหนดขนาดให้ container ตามขนาดของ image
-    container.setInteractive();
+    //container.setSize(image.displayWidth * container.scale, image.displayHeight * container.scale); // กำหนดขนาดให้ container ตามขนาดของ image
+    image.setInteractive();
 
-    container.on("pointerdown", callback);
+    image.on("pointerdown", callback);
     return container;
   }
 
