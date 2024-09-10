@@ -1,6 +1,7 @@
 class GameLogic {
   colorTable = [];
   statusTable = [];
+  goal = new Array(10).fill(0);
   constructor() {
     for (let i = 0; i < 64; i++) {
       this.colorTable[i] = (i % 6) + 1;
@@ -81,7 +82,6 @@ class GameLogic {
 
   checkAllowSwap(source, target) {
     if (target < 0) {
-      console.log("1");
       return null;
     }
     let testTable = Array.from(this.colorTable);
@@ -103,10 +103,9 @@ class GameLogic {
       }
     }
     if (pairCount > 0) {
-      console.log("2");
       return markTable;
     }
-    console.log("3");
+
     return null;
   }
 
@@ -180,16 +179,17 @@ class GameLogic {
       markTable[cell] = 3;
       result = true;
     }
-    console.log("4", pairCount);
+
     return result;
   }
 
   execute(markTable, effect) {
     for (const cell in markTable) {
       if (markTable[cell] == 3) {
-        this.colorTable[cell] = 0;
+        this.goalData(cell);
       }
     }
+
     effect();
   }
 
@@ -209,21 +209,27 @@ class GameLogic {
         if (y == 7 && j == 2) {
           continue;
         }
-        this.colorTable[(y - 1 + j) * 8 + (x - 1 + i)] = 0;
+        let cell = (y - 1 + j) * 8 + (x - 1 + i);
+        this.goalData(cell);
       }
     }
   }
 
   rocketHorizontal(x, y, index) {
     for (let i = 0; i < 8; i++) {
-      this.colorTable[y * 8 + i] = 0;
+      this.goalData(y * 8 + i);
     }
   }
 
   rocketVertical(x, y, index) {
     for (let i = 0; i < 8; i++) {
-      this.colorTable[i * 8 + x] = 0;
+      this.goalData(i * 8 + x);
     }
+  }
+
+  goalData(cell) {
+    this.goal[this.colorTable[cell]]++;
+    this.colorTable[cell] = 0;
   }
 
   moveDown(colorTable) {
@@ -246,12 +252,19 @@ class GameLogic {
   }
 
   refill() {
-    for (let i = 63; i >= 0; i--) {
+    let result = false;
+    for (let i = 0; i < 8; i++) {
       if (this.colorTable[i] == 0) {
         this.colorTable[i] = (Math.trunc(Math.random() * 1000) % 6) + 1;
+        if (Math.random() * 100 < 5) {
+          this.colorTable[i] = (Math.trunc(Math.random() * 1000) % 3) + 7;
+        }
+        result = true;
       }
     }
+    return result;
   }
+
   printTable(colorTable) {
     let table = "";
     for (let jj = 0; jj < 8; jj++) {
@@ -278,6 +291,9 @@ class Game extends Phaser.Scene {
   state = "ready";
   markTable = null;
   ignoreState = 0;
+  scoreCounter = [];
+  correctSound = null;
+  incorrectSound = null;
   constructor() {
     super("Game");
   }
@@ -298,53 +314,98 @@ class Game extends Phaser.Scene {
     this.load.image("cube7", "Assets/image/boosters/bomb.webp");
     this.load.image("cube8", "Assets/image/boosters/RocketHorizontal.webp");
     this.load.image("cube9", "Assets/image/boosters/RocketVertical.webp");
+    this.load.audio("bgm", "Assets/audio/bgm_loop.mp3");
+    this.load.audio("correct", "Assets/audio/correct_match.mp3");
+    this.load.audio("incorrect", "Assets/audio/incorrect_match.mp3");
   }
 
   logicLoop() {
+    //console.log(this.state, this.ignoreState);
     if (this.ignoreState-- > 0) {
       return;
     }
     if (this.state == "swap") {
       this.logic.execute(this.markTable, () => {
-        this.ignoreState = 3;
+        this.ignoreState = 0;
         this.state = "movedown";
       });
-    }
-    if (this.state == "movedown") {
+    } else if (this.state == "movedown") {
       let moveDown = this.logic.moveDown(this.logic.colorTable);
       if (!moveDown) {
-        this.ignoreState = 10;
+        this.ignoreState = 0;
         this.state = "checkchain";
       }
-    }
-    if (this.state == "checkchain") {
+    } else if (this.state == "checkchain") {
       let chain = this.logic.checkChain();
       if (!chain) {
-        this.ignoreState = 10;
+        this.ignoreState = 0;
         this.state = "refill";
       } else {
+        this.correctSound.play();
         this.logic.execute(chain, () => {
-          this.ignoreState = 3;
+          this.ignoreState = 0;
           this.state = "movedown";
         });
       }
-    }
-    if (this.state == "refill") {
-      this.logic.refill();
-      this.ignoreState = 10;
-      this.state = "checkchain_after_refill";
-    }
-    if (this.state == "checkchain_after_refill") {
+    } else if (this.state == "refill") {
+      if (this.logic.refill()) {
+        //this.ignoreState = 5;
+        this.state = "refill_movedown";
+      } else {
+        this.ignoreState = 0;
+        this.state = "checkchain_after_refill";
+      }
+    } else if (this.state == "checkchain_after_refill") {
       let chain = this.logic.checkChain();
       if (!chain) {
         this.markTable = null;
         this.state = "ready";
       } else {
+        this.correctSound.play();
         this.logic.execute(chain, () => {
-          this.ignoreState = 3;
+          this.ignoreState = 0;
           this.state = "movedown";
         });
       }
+    } else if (this.state == "refill_movedown") {
+      //this.ignoreState = 10;
+      let moveDown = this.logic.moveDown(this.logic.colorTable);
+      this.state = "refill";
+    }
+  }
+
+  scoreUpdate() {
+    for (let i = 1; i < 4; i++) {
+      this.scoreCounter[i].goalCounter.setText(this.logic.goal[i] + "/10");
+    }
+    //checkGameComplete
+    let complete = true;
+    for (let i = 1; i < 4; i++) {
+      if (this.logic.goal[i] < 10) {
+        complete = false;
+      }
+    }
+    if (complete && this.endCardArea.visible == false && this.state == "ready") {
+      this.state == "complete";
+      this.endCardArea.setVisible(true);
+      this.endCardArea.setAlpha(0);
+      this.endCardLogo.setScale(0);
+      this.ctaEndCardPlay.setAlpha(0);
+      this.endCardArea.intervalID = setInterval(() => {
+        this.endCardArea.setAlpha(this.endCardArea.alpha + 0.05);
+        if (this.endCardArea.alpha >= 1) {
+          clearInterval(this.endCardArea.intervalID);
+          this.endCardArea.intervalID = setInterval(() => {
+            this.endCardLogo.setScale(this.endCardLogo.scale + 0.01);
+            this.ctaEndCardPlay.setAlpha(this.ctaEndCardPlay.alpha + 0.04);
+            if (this.endCardLogo.scale >= 0.25) {
+              this.endCardLogo.setScale(0.25);
+              this.ctaEndCardPlay.setAlpha(1);
+              clearInterval(this.endCardArea.intervalID);
+            }
+          }, 40);
+        }
+      }, 40);
     }
   }
 
@@ -353,8 +414,25 @@ class Game extends Phaser.Scene {
     setInterval(this.logicLoop.bind(this), 50);
     // Add the background image to the game
     this.background = this.add.image(this.scale.width / 2, this.scale.height / 2, "background");
-
     this.gameObjectMap.background = this.background;
+
+    let bgMusic = this.sound.add("bgm", {
+      volume: 0.5, // ปรับระดับเสียง
+      loop: true, // ตั้งค่าให้เล่นวนลูป
+    });
+
+    // เริ่มเล่น background music
+    bgMusic.play();
+
+    this.correctSound = this.sound.add("correct", {
+      volume: 0.5, // ปรับระดับเสียง
+      loop: false, // ตั้งค่าให้เล่นวนลูป
+    });
+
+    this.incorrectSound = this.sound.add("incorrect", {
+      volume: 0.5, // ปรับระดับเสียง
+      loop: false, // ตั้งค่าให้เล่นวนลูป
+    });
 
     //Create New Container
     this.gameArea = this.add.container(0, 0);
@@ -381,6 +459,7 @@ class Game extends Phaser.Scene {
         this.cube.setOrigin(0.5);
         this.cube.game = this;
         this.cube.update = (cube) => {
+          cube.angle = Math.sin(Date.now() / 100) * 5;
           let cubeData = this.logic.getCellByIndex(cube.index);
           cube.displayHeight = cube.game.cubeSize;
           cube.displayWidth = cube.game.cubeSize; //(cube.displayHeight / thcube.displayOriginY) * cube.displayOriginX;
@@ -405,18 +484,21 @@ class Game extends Phaser.Scene {
             let y = Math.trunc(this.index / 8);
             if (this.game.logic.getCellByIndex(this.index).color == 7) {
               //bomb
+              this.game.correctSound.play();
               this.game.logic.bomb(x, y, this.index);
               this.game.state = "movedown";
               return;
             }
             if (this.game.logic.getCellByIndex(this.index).color == 8) {
               //RocketHorizontal
+              this.game.correctSound.play();
               this.game.logic.rocketHorizontal(x, y, this.index);
               this.game.state = "movedown";
               return;
             }
             if (this.game.logic.getCellByIndex(this.index).color == 9) {
               //RocketVertical
+              this.game.correctSound.play();
               this.game.logic.rocketVertical(x, y, this.index);
               this.game.state = "movedown";
               return;
@@ -440,10 +522,14 @@ class Game extends Phaser.Scene {
             }
 
             this.game.second = this;
+
             this.game.markTable = this.game.logic.swapCell(this.game.first.index, this.game.second.index);
             if (this.game.markTable != null) {
-              this.game.ignoreState = 5;
+              this.game.correctSound.play();
+              this.game.ignoreState = 8;
               this.game.state = "swap";
+            } else {
+              this.game.incorrectSound.play();
             }
           },
           this.cube
@@ -489,6 +575,7 @@ class Game extends Phaser.Scene {
     //Create CTA Button
     this.ctaPlay = this.createCTAButton("Play Now!", "cta", () => {
       console.log("CTA Click");
+      window.open("https://www.adliven.com", "_blank");
     });
     this.ctaPlay.image.displayHeight = 125;
     this.ctaPlay.image.displayWidth = (this.ctaPlay.image.displayHeight / this.ctaPlay.image.displayOriginY) * this.ctaPlay.image.displayOriginX;
@@ -506,8 +593,19 @@ class Game extends Phaser.Scene {
     this.gameArea.add(this.ctaPlay);
 
     //Create Goal Counter
-    for (let i = 1; i < 7; i++) {
-      this.createGoal("5/5", 90 + 135 * (i - 1), "cube" + i, (i - 1) * 135);
+
+    this.backgroundGoalArea = this.add.rectangle(400, -45, 800, 75, 0, 0.3);
+    this.match3Area.add(this.backgroundGoalArea);
+    this.goalText = this.add.text(200, -45, "Goal", {
+      font: "400 50px FredokaOne",
+      fill: "#ffffff",
+      align: "center",
+    });
+    this.goalText.setOrigin(0.5);
+    this.match3Area.add(this.goalText);
+    let shift = 300;
+    for (let i = 1; i < 4; i++) {
+      this.scoreCounter[i] = this.createGoal("0/50", shift + 90 + 135 * (i - 1), "cube" + i, (i - 1) * 135 + shift);
     }
 
     //Create End Card
@@ -529,15 +627,16 @@ class Game extends Phaser.Scene {
 
     this.endCardLogo = this.add.image(0, 0, "logo");
     this.endCardLogo.setScale(0.25);
-    this.endCardLogo.x = 0;
-    this.endCardLogo.y = 0;
-    this.endCardLogo.setOrigin(0);
+    this.endCardLogo.x = 130;
+    this.endCardLogo.y = 120;
+    this.endCardLogo.setOrigin(0.5);
 
     this.gameObjectMap.endCardLogo = this.endCardLogo;
     this.endCardContent.add(this.endCardLogo);
 
     this.ctaEndCardPlay = this.createCTAButton("Play Now!", "cta", () => {
       console.log("ctaEndCardPlay Click");
+      window.open("https://www.adliven.com", "_blank");
     });
 
     this.ctaEndCardPlay.setScale(0.25);
@@ -618,6 +717,7 @@ class Game extends Phaser.Scene {
         element.update(element);
       }
     }
+    this.scoreUpdate();
   }
 
   createCTAButton(caption, img, callback) {
@@ -654,7 +754,7 @@ class Game extends Phaser.Scene {
     cubeGoal.displayWidth = cubeSize;
     this.match3Area.add(cubeGoal);
     let goalCounter = this.add.text(captionX, cubeY + cubeSize / 2, caption, {
-      font: "700 32px FredokaOne",
+      font: "400 20px FredokaOne",
       fill: "#ffffff",
       align: "center",
     });

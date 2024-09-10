@@ -16,10 +16,15 @@
             width: 100vw;       /* ให้ canvas กินพื้นที่ความกว้างเต็มหน้าจอ */
             height: 100vh;      /* ให้ canvas กินพื้นที่ความสูงเต็มหน้าจอ */
         }
+        @font-face {
+            font-family: 'FredokaOne';
+            src: url('Assets/fonts/FredokaOne-Regular.ttf') format('truetype');
+        }
     </style>
 </head>
 
 <body>
+    <div style="font-family:FredokaOne; position: absolute; left:-1000px; visibility:hidden;">.</div>
     <script src="Assets/lib/phaser.js"></script>
     <script src="game.js"></script>
 </body>
