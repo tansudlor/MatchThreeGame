@@ -320,39 +320,32 @@ class Game extends Phaser.Scene {
   }
 
   logicLoop() {
-    //console.log(this.state, this.ignoreState);
     if (this.ignoreState-- > 0) {
       return;
     }
     if (this.state == "swap") {
       this.logic.execute(this.markTable, () => {
-        this.ignoreState = 0;
         this.state = "movedown";
       });
     } else if (this.state == "movedown") {
       let moveDown = this.logic.moveDown(this.logic.colorTable);
       if (!moveDown) {
-        this.ignoreState = 0;
         this.state = "checkchain";
       }
     } else if (this.state == "checkchain") {
       let chain = this.logic.checkChain();
       if (!chain) {
-        this.ignoreState = 0;
         this.state = "refill";
       } else {
         this.correctSound.play();
         this.logic.execute(chain, () => {
-          this.ignoreState = 0;
           this.state = "movedown";
         });
       }
     } else if (this.state == "refill") {
       if (this.logic.refill()) {
-        //this.ignoreState = 5;
         this.state = "refill_movedown";
       } else {
-        this.ignoreState = 0;
         this.state = "checkchain_after_refill";
       }
     } else if (this.state == "checkchain_after_refill") {
@@ -363,25 +356,23 @@ class Game extends Phaser.Scene {
       } else {
         this.correctSound.play();
         this.logic.execute(chain, () => {
-          this.ignoreState = 0;
           this.state = "movedown";
         });
       }
     } else if (this.state == "refill_movedown") {
-      //this.ignoreState = 10;
-      let moveDown = this.logic.moveDown(this.logic.colorTable);
+      this.logic.moveDown(this.logic.colorTable);
       this.state = "refill";
     }
   }
 
   scoreUpdate() {
     for (let i = 1; i < 4; i++) {
-      this.scoreCounter[i].goalCounter.setText(this.logic.goal[i] + "/10");
+      this.scoreCounter[i].goalCounter.setText(this.logic.goal[i] + "/25");
     }
     //checkGameComplete
     let complete = true;
     for (let i = 1; i < 4; i++) {
-      if (this.logic.goal[i] < 10) {
+      if (this.logic.goal[i] < 25) {
         complete = false;
       }
     }
@@ -411,27 +402,27 @@ class Game extends Phaser.Scene {
 
   create() {
     this.logic = new GameLogic();
-    setInterval(this.logicLoop.bind(this), 50);
+    setInterval(this.logicLoop.bind(this), 1000 / 18);
     // Add the background image to the game
     this.background = this.add.image(this.scale.width / 2, this.scale.height / 2, "background");
     this.gameObjectMap.background = this.background;
 
     let bgMusic = this.sound.add("bgm", {
-      volume: 0.5, // ปรับระดับเสียง
-      loop: true, // ตั้งค่าให้เล่นวนลูป
+      volume: 0.5, // Adjust volume
+      loop: true, // Set looping
     });
 
-    // เริ่มเล่น background music
+    // Start playing background music
     bgMusic.play();
 
     this.correctSound = this.sound.add("correct", {
-      volume: 0.5, // ปรับระดับเสียง
-      loop: false, // ตั้งค่าให้เล่นวนลูป
+      volume: 0.5, // Adjust volume
+      loop: false, // Set looping
     });
 
     this.incorrectSound = this.sound.add("incorrect", {
-      volume: 0.5, // ปรับระดับเสียง
-      loop: false, // ตั้งค่าให้เล่นวนลูป
+      volume: 0.5, // Adjust volume
+      loop: false, // Set looping
     });
 
     //Create New Container
@@ -462,7 +453,7 @@ class Game extends Phaser.Scene {
           cube.angle = Math.sin(Date.now() / 100) * 5;
           let cubeData = this.logic.getCellByIndex(cube.index);
           cube.displayHeight = cube.game.cubeSize;
-          cube.displayWidth = cube.game.cubeSize; //(cube.displayHeight / thcube.displayOriginY) * cube.displayOriginX;
+          cube.displayWidth = cube.game.cubeSize;
           if (cubeData.color > 6) {
             cube.setScale(0.175);
           }
@@ -596,7 +587,7 @@ class Game extends Phaser.Scene {
 
     this.backgroundGoalArea = this.add.rectangle(400, -45, 800, 75, 0, 0.3);
     this.match3Area.add(this.backgroundGoalArea);
-    this.goalText = this.add.text(200, -45, "Goal", {
+    this.goalText = this.add.text(200, -45, "Goals", {
       font: "400 50px FredokaOne",
       fill: "#ffffff",
       align: "center",
@@ -667,7 +658,6 @@ class Game extends Phaser.Scene {
     let areaSizeFactor = 0.97;
     const width = gameSize.width;
     const height = gameSize.height;
-    //console.log(width, height);
 
     this.background.displayWidth = width;
     this.background.displayHeight = height;
@@ -689,7 +679,7 @@ class Game extends Phaser.Scene {
         let cubeSize = this.cubeSize * scaleFactor;
         let contentWidth = this.column * this.cubeSize + this.cubeSize / 2 - this.logo.x - this.logo.displayWidth / 2;
         this.gameArea.x = (gameSize.width - this.gameArea.width * scaleFactor) / 2;
-        this.gameArea.y = 75; //(gameSize.height - this.gameArea.height * scaleFactor) / 2;
+        this.gameArea.y = 75;
         element.resize ? element.resize(element, scaleFactor, gameSize) : null;
         element.portrait ? element.portrait(element, scaleFactor, cubeSize, contentWidth) : null;
       } else {
@@ -723,22 +713,21 @@ class Game extends Phaser.Scene {
   createCTAButton(caption, img, callback) {
     let container = this.add.container(0, 0);
 
-    // เพิ่ม image เข้าไปใน container
+    // Add image to the container
     let image = this.add.image(0, 0, img);
     image.setOrigin(0.5);
     container.add(image);
     container.image = image;
-    // เพิ่มข้อความ (child) เข้าไปใน container
+    // Add text (child) to the container
     let text = this.add.text(0, 0, caption, {
       font: "32px FredokaOne",
       fill: "#ffffff",
       align: "center",
     });
-    text.setOrigin(0.5); // ตั้งให้ข้อความอยู่กึ่งกลางของ image
+    text.setOrigin(0.5); // Set the text to the center of the image
     container.add(text);
     container.text = text;
-    // ตั้งค่า interactive ให้ container (รวมถึง image และ text)
-    //container.setSize(image.displayWidth * container.scale, image.displayHeight * container.scale); // กำหนดขนาดให้ container ตามขนาดของ image
+    // Set interactive for the container (including image and text)
     image.setInteractive();
 
     image.on("pointerdown", callback);
